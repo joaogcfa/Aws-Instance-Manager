@@ -2,6 +2,10 @@ import boto3
 import os
 from dotenv import load_dotenv
 import time
+import logging
+
+logging.basicConfig(filename='log.txt', filemode='w',
+                    format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 KeyName = 'joaoproject'
 GroupIdName = 'joaoproject'
@@ -33,29 +37,37 @@ vpc_ohio = vpc_list_ohio['Vpcs'][0]['VpcId']
 
 print("\n############ BEGIN ############\n")
 print("\n")
+logging.info("############ BEGIN ############")
 
 
 print("### Initalizing in Ohaio ###\n")
+logging.info("### Initalizing in Ohaio ###\n")
 print("\n")
+
 
 ########### CREATING KEY PAIR ############
 print("Creating Key Pair")
+logging.info("Creating Key Pair")
 delete_kp = ec2_ohio.delete_key_pair(KeyName=KeyName)
 resp_Key = ec2_ohio.create_key_pair(KeyName=KeyName)
 print("Key Pair Created\n")
+logging.info("Key Pair Created\n")
 ########### WRITING ON THE KEY PAIR ###########
 
 print("Writing on the Key Pair file ")
+logging.info("Writing on the Key Pair file ")
 try:
     if os.path.exists('{0}.pem'.format(KeyName)):
         os.remove('{0}.pem'.format(KeyName))
 except:
     print("Error while deleting file ", os.getcwd())
+    logging.info("Error while deleting file ", os.getcwd())
 
 # write private key to file with 777 permissions
 with os.fdopen(os.open('{0}.pem'.format(KeyName), os.O_WRONLY | os.O_CREAT, 0o777), "w+") as handle:
     handle.write(resp_Key['KeyMaterial'])
 print("Key Pair file Written\n")
+logging.info("Key Pair file Written\n")
 
 
 responseInst_ohio = ec2_ohio.describe_instances(
@@ -79,11 +91,13 @@ responseInst_ohio = ec2_ohio.describe_instances(
 
 if responseInst_ohio['Reservations']:
     print("Deleting Instance Previously Created")
+    logging.info("Deleting Instance Previously Created")
     instanceId_ohio = responseInst_ohio['Reservations'][0]['Instances'][0]['InstanceId']
     ec2_ohio.terminate_instances(InstanceIds=[instanceId_ohio])
     instance_to_be_term = ec2_resource_ohio.Instance(instanceId_ohio)
     instance_to_be_term.wait_until_terminated()
     print("Previous Instance Deleted\n")
+    logging.info("Previous Instance Deleted\n")
 
 # file = open('{0}.pem'.format(KeyName), 'w')
 # file.write(resp_Key['KeyMaterial'])
@@ -97,24 +111,29 @@ response_del_sec_group = ec2_ohio.describe_security_groups(
 )
 if response_del_sec_group['SecurityGroups']:
     print("Deleting Previous Security Group")
+    logging.info("Deleting Previous Security Group")
     group_id = response_del_sec_group['SecurityGroups'][0]['GroupId']
     delete_sc = ec2_ohio.delete_security_group(
         GroupId=group_id,
     )
     print("Previous Security Group Deleted\n")
+    logging.info("Previous Security Group Deleted\n")
 
 # CREATING SECURITY GROUPS
 print("Creating Security Group ")
+logging.info("Creating Security Group ")
 resp_security_group = ec2_ohio.create_security_group(
     GroupName=GroupIdName,
     Description='Postgres',
     VpcId=vpc_ohio
 )
 print("Security Group Created\n")
+logging.info("Security Group Created\n")
 
 gid = resp_security_group['GroupId']
 
 print("Setting the rules of the Security Group")
+logging.info("Setting the rules of the Security Group")
 ec2_ohio.authorize_security_group_ingress(
     GroupId=gid,
     IpPermissions=[
@@ -139,10 +158,13 @@ ec2_ohio.authorize_security_group_ingress(
     ]
 )
 print("Rules Setted\n")
+logging.info("Rules Setted\n")
 
 
 # CREATING THE INSTANCE
 print("############ Creating the Instance in Ohio (Postgres) ############")
+logging.info(
+    "############ Creating the Instance in Ohio (Postgres) ############")
 
 
 user_data = '''#!/bin/bash
@@ -180,12 +202,15 @@ instances = ec2_resource_ohio.create_instances(
 instance_id = instances[0].instance_id
 
 print("Adding Name Tags to Key\n")
+logging.info("Adding Name Tags to Key\n")
 ec2_ohio.create_tags(Resources=[instance_id], Tags=[
     {'Key': 'Name', 'Value': 'PostGres'}])
 
 print("Waiting for the Instace to be Running... \n")
+logging.info("Waiting for the Instace to be Running... \n")
 instances[0].wait_until_running()
 print("############ Ohaio Instance running! ############")
+logging.info("############ Ohaio Instance running! ############")
 response_create_instance = ec2_ohio.describe_instances(InstanceIds=[
                                                        instance_id])
 print("\n")
@@ -194,7 +219,9 @@ print("\n")
 # NORTH VIRGINIA
 
 print("### Initalizing in North Virtginia ###\n")
+logging.info("### Initalizing in North Virtginia ###\n")
 print("\n")
+
 
 auto_client = boto3.client(service_name="autoscaling", aws_access_key_id=aws_access_key_id,
                            aws_secret_access_key=aws_secret_access_key,
@@ -245,8 +272,10 @@ if responseInst_NV['Reservations']:
 
 if response_describe_auto['AutoScalingGroups']:
     print("#### Previous Instalation Detected! ####\n")
+    logging.info("#### Previous Instalation Detected! ####\n")
 
     print("Deleting AMI")
+    logging.info("Deleting AMI")
     response_desc_image = ec2_NV.describe_images(
         Owners=['self'],
         Filters=[{
@@ -258,36 +287,44 @@ if response_describe_auto['AutoScalingGroups']:
     ami.deregister()
 
     print("Deleting Instance Previously Created From the AutoScaling Group")
+    logging.info(
+        "Deleting Instance Previously Created From the AutoScaling Group")
     response_update = auto_client.update_auto_scaling_group(
         AutoScalingGroupName=AutoScalingName,
         MinSize=0,
         DesiredCapacity=0,
     )
     print("Waiting for instance to be terminated...")
+    logging.info("Waiting for instance to be terminated...")
     instance_to_be_term.wait_until_terminated()
     print("Instance terminated!\n")
+    logging.info("Instance terminated!\n")
 
-    print("Deleting scaling group")
+    print("Deleting auto scaling group")
+    logging.info("Deleting scaling group")
     response_del_auto_scaling_group = auto_client.delete_auto_scaling_group(
         AutoScalingGroupName=AutoScalingName,
         ForceDelete=True
     )
     print("Deleting Launch Config")
+    logging.info("Deleting Launch Config")
     auto_client.delete_launch_configuration(
         LaunchConfigurationName=LaunchConfigName
     )
-    print("Deleting Load Balancer")
     describe_load = elb_client.describe_load_balancers()
     if describe_load["LoadBalancers"][0]['LoadBalancerName'] == LbName:
+        print("Deleting Load Balancer")
+        logging.info("Deleting Load Balancer")
         lb_arm = describe_load["LoadBalancers"][0]['LoadBalancerArn']
         resp_listener = elb_client.describe_listeners(LoadBalancerArn=lb_arm)
         listener_arn = resp_listener['Listeners'][0]['ListenerArn']
         elb_client.delete_listener(ListenerArn=listener_arn)
         elb_client.delete_load_balancer(LoadBalancerArn=lb_arm)
 
-    print("Deleting target_group")
     decribe_target = elb_client.describe_target_groups()
     if decribe_target['TargetGroups'][0]['TargetGroupName'] == TgName:
+        print("Deleting target_group")
+        logging.info("Deleting target_group")
         tg_arn = decribe_target['TargetGroups'][0]['TargetGroupArn']
         elb_client.delete_target_group(TargetGroupArn=tg_arn)
 
@@ -305,13 +342,15 @@ response_del_sec_group = ec2_NV.describe_security_groups(
     ]
 )
 if response_del_sec_group['SecurityGroups']:
-    print("Deleting Instance Previously Created")
+    print("Deleting Securtity Group Previously Created")
+    logging.info("Deleting Securtity Group Previously Created")
     group_id = response_del_sec_group['SecurityGroups'][0]['GroupId']
     delete_sc = ec2_NV.delete_security_group(
         GroupId=group_id,
     )
 
 print("Creating Security Group")
+logging.info("Creating Security Group")
 resp_creat_sec_group = ec2_NV.create_security_group(
     GroupName=GroupIdName,
     Description='Django',
@@ -321,6 +360,7 @@ resp_creat_sec_group = ec2_NV.create_security_group(
 gid_NV = resp_creat_sec_group['GroupId']
 
 print("Setting the rules of the Security Group")
+logging.info("Setting the rules of the Security Group")
 ec2_NV.authorize_security_group_ingress(
     GroupId=gid_NV,
     IpPermissions=[
@@ -347,16 +387,19 @@ ec2_NV.authorize_security_group_ingress(
 
 ########### CREATING KEY PAIR ############
 print("Creating Key Pair")
+logging.info("Creating Key Pair")
 delete_kp = ec2_NV.delete_key_pair(KeyName=KeyNameNV)
 resp_Key_NV = ec2_NV.create_key_pair(KeyName=KeyNameNV)
 
 
 print("Writing on the Key Pair file \n\n")
+logging.info("Writing on the Key Pair file \n\n")
 try:
     if os.path.exists('{0}.pem'.format(KeyNameNV)):
         os.remove('{0}.pem'.format(KeyNameNV))
 except:
     print("Error while deleting file ", os.getcwd())
+    logging.info("Error while deleting file ", os.getcwd())
 
 # write private key to file with 777 permissions
 with os.fdopen(os.open('{0}.pem'.format(KeyNameNV), os.O_WRONLY | os.O_CREAT, 0o777), "w+") as handle:
@@ -364,6 +407,7 @@ with os.fdopen(os.open('{0}.pem'.format(KeyNameNV), os.O_WRONLY | os.O_CREAT, 0o
 
 
 # print("############ Writing on the Key Pair file ############")
+# logging.info("############ Writing on the Key Pair file ############")
 # file = open('{0}.pem'.format(KeyNameNV), 'w')
 # file.write(resp_Key_NV['KeyMaterial'])
 # file.close()
@@ -389,6 +433,8 @@ touch finalizou.bar
 '''.format(ip_instance_ohio)
 
 print("############ Creating the Instance in North Virginia (Django) ############")
+logging.info(
+    "############ Creating the Instance in North Virginia (Django) ############")
 instances = ec2_resource_NV.create_instances(
     ImageId='ami-0279c3b3186e54acd',
     MinCount=1,
@@ -409,28 +455,35 @@ instances = ec2_resource_NV.create_instances(
 )
 
 print("Adding Name Tags to Key\n")
+logging.info("Adding Name Tags to Key\n")
 instance_id = instances[0].instance_id
 ec2_NV.create_tags(Resources=[instance_id], Tags=[
     {'Key': 'Name', 'Value': 'Django'}])
 
 print("Waiting for the Instace to be Running... ")
+logging.info("Waiting for the Instace to be Running... ")
 instances[0].wait_until_running()
 print("############ North Virginia Instance running! ############\n")
+logging.info("############ North Virginia Instance running! ############\n")
 
 
 print("Creating AMI from the Instance that was created")
+logging.info("Creating AMI from the Instance that was created")
 
 image_id = ec2_NV.create_image(InstanceId=instance_id, Name=AMIName)
 
 image = ec2_resource_NV.Image(image_id['ImageId'])
 if(image.state == 'pending'):
     print("Waiting for image to be available.")
+    logging.info("Waiting for image to be available.")
     while(image.state != 'available'):
         image = ec2_resource_NV.Image(image_id['ImageId'])
     print("Image Available to use")
+    logging.info("Image Available to use")
 
 
 print("Deleting Instances\n")
+logging.info("Deleting Instances\n")
 resp_terminate = ec2_NV.terminate_instances(
     InstanceIds=[
         instance_id,
@@ -439,6 +492,7 @@ resp_terminate = ec2_NV.terminate_instances(
 
 
 print("############ Creating LoadBalancers ")
+logging.info("############ Creating LoadBalancers ")
 
 
 subnets = []
@@ -455,9 +509,12 @@ lbId = create_lb_response['LoadBalancers'][0]['LoadBalancerArn']
 
 arn_lbId = lbId.split('r/')[1]
 print("LoadBalancer Created ############")
+logging.info("LoadBalancer Created ############")
 print("\n")
 
+
 print("############ Creating Target Groups ")
+logging.info("############ Creating Target Groups ")
 create_tg_response = elb_client.create_target_group(Name=TgName,
                                                     Protocol='HTTP',
                                                     Port=8080,
@@ -468,10 +525,12 @@ tgId = create_tg_response['TargetGroups'][0]['TargetGroupArn']
 arn_tgId = 't' + tgId.split(':t')[1]
 arn_id = arn_lbId + '/' + arn_tgId
 print("Target Groups Created ############")
+logging.info("Target Groups Created ############")
 print("\n")
 
 
 print("############ Creating Listener ")
+logging.info("############ Creating Listener ")
 create_listener_response = elb_client.create_listener(LoadBalancerArn=lbId,
                                                       Protocol='HTTP', Port=80,
                                                       DefaultActions=[{'Type': 'forward',
@@ -483,6 +542,7 @@ for reservation in response_describe_images["Images"]:
         AMI_ID = reservation["ImageId"]
 
 print("Listener Created ############")
+logging.info("Listener Created ############")
 print("\n")
 
 
@@ -494,6 +554,7 @@ for group in response_security_group["SecurityGroups"]:
 
 
 print("############ Creating Launch Config ")
+logging.info("############ Creating Launch Config ")
 response_launch_config = auto_client.create_launch_configuration(
     LaunchConfigurationName=LaunchConfigName,
     ImageId=AMI_ID,
@@ -504,10 +565,12 @@ response_launch_config = auto_client.create_launch_configuration(
 )
 
 print("Launch Config Created ############")
+logging.info("Launch Config Created ############")
 print("\n")
 
 
 print("############ Creating Auto Scaling ")
+logging.info("############ Creating Auto Scaling ")
 response_creat_auto = auto_client.create_auto_scaling_group(
     AutoScalingGroupName=AutoScalingName,
     LaunchConfigurationName=LaunchConfigName,
@@ -525,10 +588,12 @@ response_creat_auto = auto_client.create_auto_scaling_group(
     ]
 )
 print("Auto Scaling Created ############")
+logging.info("Auto Scaling Created ############")
 print("\n")
 
 
 print("############ Adding Policies")
+logging.info("############ Adding Policies")
 response = auto_client.put_scaling_policy(
     AutoScalingGroupName=AutoScalingName,
     PolicyName=PolicyName,
@@ -542,7 +607,9 @@ response = auto_client.put_scaling_policy(
     },
 )
 print("Policies Added############")
+logging.info("Policies Added############")
 print("\n")
 
 
 print("################### DONE ###################")
+logging.info("################### DONE ###################")
