@@ -3,6 +3,7 @@
 ## Setting the infrastructure:
 
 ### First of all you need to install the aws CLI
+___
 
 <a href="https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html">Install AWS CLI</a>
 
