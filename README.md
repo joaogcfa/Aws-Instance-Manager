@@ -69,4 +69,5 @@ for user in iam.list_users()["Users"]:
 4. Copy the IP address of the LB
 5. Run the `client.py`
 6. Open in the navigator the LB ip address
-7. Execute the commands in 
+7. Execute the commands in the client terminal
+8. Refresh the navigator to see the db change in real time
