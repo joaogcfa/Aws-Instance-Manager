@@ -2,7 +2,7 @@
 
 ## Project Description:
 
-This project is aimed to create an Object-Relational Mapping (ORM) multi-cloud system with Load Balancer and Autoscalling, which means that this project has the capacity of creating and configuring Amazon AWS EC2 instances to create an REST API comunication.
+This project is aimed to create an Object-Relational Mapping (ORM) multi-cloud system with Load Balancer and Autoscaling, which means that this project has the capacity of creating and configuring Amazon AWS EC2 instances to create a REST API communication.
 
 To achieve this result, it was needed to use and SDK from python called Boto3, which manages Amazon Elastic Compute Cloud (EC2) programatically. Moreover, with the help of Boto, it was created two types of instances, one in Ohaio and one in North Virginia. The first one was where I would store the Database with Postgress and the second one where the ORM would be installed. 
 
